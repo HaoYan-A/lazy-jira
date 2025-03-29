@@ -47,10 +47,20 @@ export interface SprintResponse {
 }
 
 export interface JiraUser {
-  displayName: string;
+  self: string;
+  key: string;
+  name: string;
+  emailAddress: string;
   avatarUrls: {
     '48x48': string;
+    '24x24': string;
+    '16x16': string;
+    '32x32': string;
   };
+  displayName: string;
+  active: boolean;
+  timeZone: string;
+  locale: string;
 }
 
 interface CustomFieldOption {
@@ -105,6 +115,40 @@ export interface Status {
 
 export interface StatusResponse {
   values: Status[];
+}
+
+export interface Transition {
+  id: string;
+  name: string;
+  to: {
+    id: string;
+    name: string;
+    statusCategory: {
+      id: string;
+      key: string;
+      colorName: string;
+      name: string;
+    };
+  };
+  hasScreen: boolean;
+  isGlobal: boolean;
+  isInitial: boolean;
+  isConditional: boolean;
+  isLooped: boolean;
+  fields: Record<string, {
+    required: boolean;
+    name: string;
+    hasDefaultValue: boolean;
+    allowedValues: any[];
+    defaultValue: any;
+  }>;
+}
+
+export interface TransitionRequest {
+  transition: {
+    id: string;
+  };
+  fields?: Record<string, any>;
 }
 
 export const jiraApi = {
@@ -174,5 +218,73 @@ export const jiraApi = {
   getStatuses: async (): Promise<StatusResponse> => {
     const response = await axios.get('/api/rest/api/3/status');
     return response.data;
+  },
+
+  async updateIssue(issueIdOrKey: string, updateData: {
+    fields?: Record<string, any>;
+    update?: Record<string, any[]>;
+  }) {
+    const response = await axios.put(`/api/rest/api/2/issue/${issueIdOrKey}`, updateData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (response.status !== 204) {
+      throw new Error('Failed to update issue');
+    }
+
+    return response.data;
+  },
+
+  async getAssignableUsers(issueKey: string, username: string = '') {
+    const response = await axios.get('/api/rest/api/2/user/assignable/search', {
+      params: {
+        username,
+        issueKey,
+        maxResults: 50,
+        startAt: 0
+      }
+    });
+    return response.data;
+  },
+
+  // 获取任务可用的状态转换
+  async getTransitions(issueKey: string): Promise<Transition[]> {
+    const response = await axios.get(`/api/rest/api/2/issue/${issueKey}/transitions`, {
+      headers: {
+        'Authorization': `Basic ${localStorage.getItem('authToken')}`
+      }
+    });
+
+    if (response.status !== 200) {
+      throw new Error('Failed to fetch transitions');
+    }
+
+    return response.data.transitions;
+  },
+
+  // 执行状态转换
+  async transitionIssue(issueKey: string, transitionId: string, fields?: Record<string, any>): Promise<void> {
+    const request: TransitionRequest = {
+      transition: {
+        id: transitionId
+      }
+    };
+
+    if (fields) {
+      request.fields = fields;
+    }
+
+    const response = await axios.post(`/api/rest/api/2/issue/${issueKey}/transitions`, request, {
+      headers: {
+        'Authorization': `Basic ${localStorage.getItem('authToken')}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.status !== 204) {
+      throw new Error('Failed to transition issue');
+    }
   }
 };

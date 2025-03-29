@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Layout, Typography, Button, Space, Select, message, Table, Tag, Avatar, Switch, Input, Form, Drawer, Divider } from 'antd';
+import { Layout, Typography, Button, Space, Select, message, Table, Tag, Avatar, Switch, Input, Form, Drawer, Divider, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { jiraApi, Sprint, Board, Issue, JiraUser, Status } from '../services/jiraApi';
+import { jiraApi, Sprint, Board, Issue, JiraUser, Status, Transition } from '../services/jiraApi';
 import type { ColumnsType } from 'antd/es/table';
 import SettingsDrawer from './components/SettingsDrawer';
 import IssueDetailDrawer from './components/IssueDetailDrawer';
-import { SettingOutlined, SearchOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { SettingOutlined, SearchOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined, LinkOutlined } from '@ant-design/icons';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -83,8 +83,24 @@ const Home: React.FC = () => {
     incompleteIssues: [] as Issue[]
   });
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [statsDrawerVisible, setStatsDrawerVisible] = useState(false);
+  const [editingKey, setEditingKey] = useState<string>('');
+  const [editingSummary, setEditingSummary] = useState<string>('');
+  const [editingAssignee, setEditingAssignee] = useState<string>('');
+  const [assignableUsers, setAssignableUsers] = useState<JiraUser[]>([]);
+  const [assigneeSearchText, setAssigneeSearchText] = useState('');
+  const [assigneeModalVisible, setAssigneeModalVisible] = useState(false);
+  const [currentEditingRecord, setCurrentEditingRecord] = useState<Issue | null>(null);
+  const [summaryModalVisible, setSummaryModalVisible] = useState(false);
+  const [isEditingDeveloper, setIsEditingDeveloper] = useState(false);
+  const [transitions, setTransitions] = useState<Transition[]>([]);
+  const [transitionModalVisible, setTransitionModalVisible] = useState(false);
+  const [storyPointsModalVisible, setStoryPointsModalVisible] = useState(false);
+  const [editingStoryPoints, setEditingStoryPoints] = useState<string>('');
+  const [devHoursModalVisible, setDevHoursModalVisible] = useState(false);
+  const [editingDevHours, setEditingDevHours] = useState<string>('');
+  const [codingModalVisible, setCodingModalVisible] = useState(false);
+  const [editingCoding, setEditingCoding] = useState<string>('');
 
   useEffect(() => {
     // 从本地存储获取保存的看板和 Sprint
@@ -120,6 +136,15 @@ const Home: React.FC = () => {
         fixed: 'left',
         render: (text: string, record: Issue) => (
           <Space>
+            <Button
+              type="text"
+              icon={<LinkOutlined />}
+              onClick={() => {
+                const url = `https://jira.logisticsteam.com/browse/${text}`;
+                window.open(url, '_blank');
+              }}
+              style={{ padding: '0 4px' }}
+            />
             <img
               src={record.fields.issuetype.iconUrl}
               alt={record.fields.issuetype.name}
@@ -143,22 +168,71 @@ const Home: React.FC = () => {
         key: 'summary',
         width: 300,
         ellipsis: true,
+        render: (text: string, record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setEditingSummary(record.fields.summary);
+              setSummaryModalVisible(true);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {text}
+          </div>
+        ),
       },
       {
         title: '任务所有者',
         dataIndex: ['fields', 'assignee'],
         key: 'assignee',
         width: 150,
-        render: (assignee: Issue['fields']['assignee']) => (
-          assignee && assignee.avatarUrls ? (
-            <Space>
-              <Avatar
-                size="small"
-                src={assignee.avatarUrls['48x48']}
-              />
-              {assignee.displayName}
-            </Space>
-          ) : '未分配'
+        render: (assignee: Issue['fields']['assignee'], record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setEditingAssignee(assignee?.name || '');
+              setAssigneeModalVisible(true);
+              // 加载可分配用户列表
+              jiraApi.getAssignableUsers(record.key).then(users => {
+                setAssignableUsers(users);
+              });
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {assignee && assignee.avatarUrls ? (
+              <Space>
+                <Avatar
+                  size="small"
+                  src={assignee.avatarUrls['48x48']}
+                />
+                {assignee.displayName}
+              </Space>
+            ) : '未分配'}
+          </div>
         ),
       },
       {
@@ -166,27 +240,76 @@ const Home: React.FC = () => {
         dataIndex: ['fields', 'customfield_11103'],
         key: 'developer',
         width: 150,
-        render: (developers: JiraUser[] | null) => (
-          developers && developers.length > 0 ? (
-            <Space>
-              <Avatar
-                size="small"
-                src={developers[0].avatarUrls['48x48']}
-              />
-              {developers[0].displayName}
-            </Space>
-          ) : '未分配'
+        render: (developers: JiraUser[] | null, record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setEditingAssignee(developers?.[0]?.name || '');
+              setIsEditingDeveloper(true);
+              setAssigneeModalVisible(true);
+              // 加载可分配用户列表
+              jiraApi.getAssignableUsers(record.key).then(users => {
+                setAssignableUsers(users);
+              });
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {developers && developers.length > 0 ? (
+              <Space>
+                <Avatar
+                  size="small"
+                  src={developers[0].avatarUrls['48x48']}
+                />
+                {developers[0].displayName}
+              </Space>
+            ) : '未分配'}
+          </div>
         ),
       },
       {
         title: '状态',
-        dataIndex: ['fields', 'status', 'name'],
+        dataIndex: ['fields', 'status'],
         key: 'status',
-        width: 120,
-        render: (status: string) => (
-          <Tag color={STATUS_COLORS[status as keyof typeof STATUS_COLORS] || 'default'}>
-            {status}
-          </Tag>
+        width: 100,
+        render: (status: Issue['fields']['status'], record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%',
+              textAlign: 'center'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setTransitionModalVisible(true);
+              // 加载可用的状态转换
+              jiraApi.getTransitions(record.key).then(transitions => {
+                setTransitions(transitions);
+              });
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            <Tag color={status.color}>{status.name}</Tag>
+          </div>
         ),
       },
       {
@@ -207,26 +330,98 @@ const Home: React.FC = () => {
         dataIndex: ['fields', 'customfield_10002'],
         key: 'storyPoints',
         width: 100,
-        render: (points: number | null) => points || '-',
+        render: (points: number | null, record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%',
+              textAlign: 'center'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setEditingStoryPoints(points?.toString() || '');
+              setStoryPointsModalVisible(true);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {points || '-'}
+          </div>
+        ),
       },
       {
         title: 'Dev Hours',
         dataIndex: ['fields', 'customfield_11602'],
         key: 'devHours',
         width: 100,
-        render: (hours: number | null) => hours || '-',
+        render: (hours: number | null, record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%',
+              textAlign: 'center'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setEditingDevHours(hours?.toString() || '');
+              setDevHoursModalVisible(true);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {hours || '-'}
+          </div>
+        ),
       },
       {
         title: 'Coding',
         dataIndex: ['fields', 'customfield_12617'],
         key: 'coding',
         width: 100,
-        render: (coding: { value: string } | null) => coding?.value || '-',
+        render: (coding: { value: string } | null, record: Issue) => (
+          <div 
+            style={{ 
+              cursor: 'pointer',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: '100%',
+              textAlign: 'center'
+            }}
+            onDoubleClick={() => {
+              setCurrentEditingRecord(record);
+              setEditingCoding(coding?.value || '');
+              setCodingModalVisible(true);
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+          >
+            {coding?.value || '-'}
+          </div>
+        ),
       },
     ];
 
     setColumns(baseColumns);
-  }, []);
+  }, [editingKey, editingSummary, editingAssignee]);
 
   const fetchAllBoards = async () => {
     try {
@@ -549,6 +744,162 @@ const Home: React.FC = () => {
     }
   }, [selectedSprint]);
 
+  const handleEdit = (record: Issue) => {
+    setEditingKey(record.id);
+    setEditingSummary(record.fields.summary);
+    setEditingAssignee(record.fields.assignee?.name || '');
+  };
+
+  const handleSave = async (record: Issue) => {
+    try {
+      await jiraApi.updateIssue(record.key, {
+        fields: {
+          summary: editingSummary,
+          assignee: editingAssignee ? { name: editingAssignee } : null
+        }
+      });
+      message.success('保存成功');
+      setEditingKey('');
+      // 刷新数据
+      if (selectedSprint) {
+        fetchSprintIssues(selectedSprint, currentPage, pageSize);
+      }
+    } catch (error) {
+      console.error('Error saving issue:', error);
+      message.error('保存失败');
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingKey('');
+  };
+
+  const handleAssigneeSelect = (user: JiraUser) => {
+    if (currentEditingRecord) {
+      setEditingAssignee(user.name);
+      // 根据是否是开发者字段选择不同的更新字段
+      const updateField = isEditingDeveloper ? 'customfield_11103' : 'assignee';
+      // 直接调用 API 更新任务所有者或开发者
+      jiraApi.updateIssue(currentEditingRecord.key, {
+        fields: {
+          [updateField]: isEditingDeveloper ? [{ name: user.name }] : { name: user.name }
+        }
+      }).then(() => {
+        message.success('保存成功');
+        setEditingKey('');
+        setAssigneeModalVisible(false);
+        setIsEditingDeveloper(false);
+        // 刷新数据
+        if (selectedSprint) {
+          fetchSprintIssues(selectedSprint, currentPage, pageSize);
+        }
+      }).catch((error) => {
+        console.error('Error saving issue:', error);
+        message.error('保存失败');
+      });
+    }
+  };
+
+  const handleSummarySave = () => {
+    if (currentEditingRecord) {
+      jiraApi.updateIssue(currentEditingRecord.key, {
+        fields: {
+          summary: editingSummary
+        }
+      }).then(() => {
+        message.success('保存成功');
+        setSummaryModalVisible(false);
+        // 刷新数据
+        if (selectedSprint) {
+          fetchSprintIssues(selectedSprint, currentPage, pageSize);
+        }
+      }).catch((error) => {
+        console.error('Error saving issue:', error);
+        message.error('保存失败');
+      });
+    }
+  };
+
+  const handleTransitionSelect = (transition: Transition) => {
+    if (currentEditingRecord) {
+      jiraApi.transitionIssue(currentEditingRecord.key, transition.id)
+        .then(() => {
+          message.success('状态更新成功');
+          setTransitionModalVisible(false);
+          // 刷新数据
+          if (selectedSprint) {
+            fetchSprintIssues(selectedSprint, currentPage, pageSize);
+          }
+        })
+        .catch((error) => {
+          console.error('Error transitioning issue:', error);
+          message.error('状态更新失败');
+        });
+    }
+  };
+
+  const handleStoryPointsSave = () => {
+    if (currentEditingRecord) {
+      const points = editingStoryPoints ? parseFloat(editingStoryPoints) : null;
+      jiraApi.updateIssue(currentEditingRecord.key, {
+        fields: {
+          customfield_10002: points
+        }
+      }).then(() => {
+        message.success('保存成功');
+        setStoryPointsModalVisible(false);
+        // 刷新数据
+        if (selectedSprint) {
+          fetchSprintIssues(selectedSprint, currentPage, pageSize);
+        }
+      }).catch((error) => {
+        console.error('Error saving story points:', error);
+        message.error('保存失败');
+      });
+    }
+  };
+
+  const handleDevHoursSave = () => {
+    if (currentEditingRecord) {
+      const hours = editingDevHours ? parseFloat(editingDevHours) : null;
+      jiraApi.updateIssue(currentEditingRecord.key, {
+        fields: {
+          customfield_11602: hours
+        }
+      }).then(() => {
+        message.success('保存成功');
+        setDevHoursModalVisible(false);
+        // 刷新数据
+        if (selectedSprint) {
+          fetchSprintIssues(selectedSprint, currentPage, pageSize);
+        }
+      }).catch((error) => {
+        console.error('Error saving dev hours:', error);
+        message.error('保存失败');
+      });
+    }
+  };
+
+  const handleCodingSave = () => {
+    if (currentEditingRecord) {
+      jiraApi.updateIssue(currentEditingRecord.key, {
+        fields: {
+          customfield_12617: editingCoding ? { value: editingCoding } : null
+        }
+      }).then(() => {
+        message.success('保存成功');
+        setCodingModalVisible(false);
+        // 刷新数据
+        if (selectedSprint) {
+          fetchSprintIssues(selectedSprint, currentPage, pageSize);
+        }
+      }).catch((error) => {
+        console.error('Error saving coding:', error);
+        message.error('保存失败');
+      });
+    }
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ 
@@ -686,11 +1037,8 @@ const Home: React.FC = () => {
         loading={settingsLoading}
       />
       <IssueDetailDrawer
-        visible={detailDrawerVisible}
-        onClose={() => {
-          setDetailDrawerVisible(false);
-          setSelectedIssue(null);
-        }}
+        visible={selectedIssue !== null}
+        onClose={() => setSelectedIssue(null)}
         issue={selectedIssue}
       />
       <Drawer
@@ -871,6 +1219,112 @@ const Home: React.FC = () => {
           />
         </div>
       </Drawer>
+      <Modal
+        title="选择新状态"
+        open={transitionModalVisible}
+        onCancel={() => setTransitionModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <div style={{ maxHeight: 400, overflow: 'auto' }}>
+          {transitions.map(transition => (
+            <div
+              key={transition.id}
+              style={{
+                padding: '8px 16px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                borderBottom: '1px solid #f0f0f0'
+              }}
+              onClick={() => handleTransitionSelect(transition)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <Tag color={transition.to.statusCategory.colorName}>
+                {transition.to.name}
+              </Tag>
+              <span>{transition.name}</span>
+            </div>
+          ))}
+        </div>
+      </Modal>
+      <Modal
+        title="编辑任务主题"
+        open={summaryModalVisible}
+        onCancel={() => {
+          setSummaryModalVisible(false);
+          handleCancel();
+        }}
+        onOk={handleSummarySave}
+        width={600}
+      >
+        <Input.TextArea
+          value={editingSummary}
+          onChange={(e) => setEditingSummary(e.target.value)}
+          autoSize={{ minRows: 3, maxRows: 5 }}
+          placeholder="请输入任务主题"
+          autoFocus
+        />
+      </Modal>
+      <Modal
+        title="编辑 Story Points"
+        open={storyPointsModalVisible}
+        onCancel={() => setStoryPointsModalVisible(false)}
+        onOk={handleStoryPointsSave}
+        width={400}
+      >
+        <Input
+          value={editingStoryPoints}
+          onChange={(e) => setEditingStoryPoints(e.target.value)}
+          placeholder="请输入 Story Points"
+          type="number"
+          step="0.5"
+          min="0"
+          autoFocus
+        />
+      </Modal>
+      <Modal
+        title="编辑 Dev Hours"
+        open={devHoursModalVisible}
+        onCancel={() => setDevHoursModalVisible(false)}
+        onOk={handleDevHoursSave}
+        width={400}
+      >
+        <Input
+          value={editingDevHours}
+          onChange={(e) => setEditingDevHours(e.target.value)}
+          placeholder="请输入 Dev Hours"
+          type="number"
+          step="0.5"
+          min="0"
+          autoFocus
+        />
+      </Modal>
+      <Modal
+        title="编辑 Coding"
+        open={codingModalVisible}
+        onCancel={() => setCodingModalVisible(false)}
+        onOk={handleCodingSave}
+        width={400}
+      >
+        <Select
+          value={editingCoding}
+          onChange={setEditingCoding}
+          style={{ width: '100%' }}
+          placeholder="请选择 Coding 状态"
+          allowClear
+          autoFocus
+        >
+          <Select.Option value="Yes">Yes</Select.Option>
+          <Select.Option value="No">No</Select.Option>
+        </Select>
+      </Modal>
     </Layout>
   );
 };
