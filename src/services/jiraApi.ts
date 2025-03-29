@@ -1,5 +1,27 @@
 import axios from 'axios';
 import { message } from 'antd';
+import { useNavigate } from 'react-router-dom';
+
+// 创建一个事件总线
+const eventBus = {
+  listeners: {} as Record<string, Function[]>,
+  
+  on(event: string, callback: Function) {
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(callback);
+  },
+  
+  emit(event: string, data?: any) {
+    if (this.listeners[event]) {
+      this.listeners[event].forEach(callback => callback(data));
+    }
+  }
+};
+
+// 导出事件总线
+export const authEventBus = eventBus;
 
 // 根据环境设置不同的 baseUrl
 const isDev = process.env.NODE_ENV === 'development';
@@ -38,8 +60,8 @@ axios.interceptors.response.use(
       // 显示错误消息
       message.error('登录已过期，请重新登录');
       
-      // 跳转到登录页
-      window.location.href = '/login';
+      // 触发导航事件
+      authEventBus.emit('auth:expired');
     }
     return Promise.reject(error);
   }
