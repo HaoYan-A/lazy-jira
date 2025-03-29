@@ -1,7 +1,29 @@
 import axios from 'axios';
 import { message } from 'antd';
 
-const JIRA_API_BASE = '/api/rest/agile/1.0';
+// 根据环境设置不同的 baseUrl
+const isDev = process.env.NODE_ENV === 'development';
+const JIRA_API_BASE = isDev ? '/api/rest/agile/1.0' : 'http://localhost:3000/rest/agile/1.0';
+const JIRA_API_BASE_V2 = isDev ? '/api/rest/api/2' : 'http://localhost:3000/rest/api/2';
+const JIRA_API_BASE_V3 = isDev ? '/api/rest/api/3' : 'http://localhost:3000/rest/api/3';
+const JIRA_AUTH_BASE = isDev ? '/api/rest/auth/1' : 'http://localhost:3000/rest/auth/1';
+
+// 添加请求拦截器
+axios.interceptors.request.use(
+  config => {
+    // 从 localStorage 获取用户信息
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const { username, password } = JSON.parse(userInfo);
+      const auth = btoa(`${username}:${password}`);
+      config.headers['Authorization'] = `Basic ${auth}`;
+    }
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
 
 // 添加响应拦截器
 axios.interceptors.response.use(
@@ -198,7 +220,7 @@ export const jiraApi = {
   login: async (username: string, password: string) => {
     try {
       const auth = btoa(`${username}:${password}`);
-      const response = await axios.get('/api/rest/auth/1/session', {
+      const response = await axios.get(`${JIRA_AUTH_BASE}/session`, {
         headers: {
           'Authorization': `Basic ${auth}`,
           'Accept': '*/*'
@@ -216,7 +238,7 @@ export const jiraApi = {
 
   // 获取所有状态
   getStatuses: async (): Promise<StatusResponse> => {
-    const response = await axios.get('/api/rest/api/3/status');
+    const response = await axios.get(`${JIRA_API_BASE_V3}/status`);
     return response.data;
   },
 
@@ -224,7 +246,7 @@ export const jiraApi = {
     fields?: Record<string, any>;
     update?: Record<string, any[]>;
   }) {
-    const response = await axios.put(`/api/rest/api/2/issue/${issueIdOrKey}`, updateData, {
+    const response = await axios.put(`${JIRA_API_BASE_V2}/issue/${issueIdOrKey}`, updateData, {
       headers: {
         'Content-Type': 'application/json',
       },
@@ -238,7 +260,7 @@ export const jiraApi = {
   },
 
   async getAssignableUsers(issueKey: string, username: string = '') {
-    const response = await axios.get('/api/rest/api/2/user/assignable/search', {
+    const response = await axios.get(`${JIRA_API_BASE_V2}/user/assignable/search`, {
       params: {
         username,
         issueKey,
@@ -251,11 +273,7 @@ export const jiraApi = {
 
   // 获取任务可用的状态转换
   async getTransitions(issueKey: string): Promise<Transition[]> {
-    const response = await axios.get(`/api/rest/api/2/issue/${issueKey}/transitions`, {
-      headers: {
-        'Authorization': `Basic ${localStorage.getItem('authToken')}`
-      }
-    });
+    const response = await axios.get(`${JIRA_API_BASE_V2}/issue/${issueKey}/transitions`);
 
     if (response.status !== 200) {
       throw new Error('Failed to fetch transitions');
@@ -276,9 +294,8 @@ export const jiraApi = {
       request.fields = fields;
     }
 
-    const response = await axios.post(`/api/rest/api/2/issue/${issueKey}/transitions`, request, {
+    const response = await axios.post(`${JIRA_API_BASE_V2}/issue/${issueKey}/transitions`, request, {
       headers: {
-        'Authorization': `Basic ${localStorage.getItem('authToken')}`,
         'Content-Type': 'application/json'
       }
     });

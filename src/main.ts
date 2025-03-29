@@ -1,18 +1,18 @@
-import { app, BrowserWindow } from 'electron';
-import path from 'node:path';
-import started from 'electron-squirrel-startup';
+import { app, BrowserWindow, session } from 'electron';
+import * as path from 'path';
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (started) {
-  app.quit();
-}
+// 存储认证信息的变量
+let authToken: string | null = null;
 
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 800,
     webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      webSecurity: false,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
@@ -21,7 +21,8 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+    // 在生产环境中使用 file:// 协议加载
+    mainWindow.loadFile(path.join(__dirname, `../renderer/index.html`));
   }
 
   // Open the DevTools.
@@ -31,7 +32,49 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.whenReady().then(() => {
+  // 设置代理
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (authToken) {
+      details.requestHeaders['Authorization'] = `Basic ${authToken}`;
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
+  // 设置代理规则
+  session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+    const url = details.url;
+    // 处理所有 Jira 相关的请求
+    if (url.startsWith('https://jira.logisticsteam.com')) {
+      callback({
+        redirectURL: url.replace('https://jira.logisticsteam.com', 'http://localhost:3000')
+      });
+    } else {
+      callback({});
+    }
+  });
+
+  // 监听来自渲染进程的消息
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    if (details.url.includes('/api/rest/auth/1/session')) {
+      const authHeader = details.requestHeaders['Authorization'];
+      if (authHeader) {
+        authToken = authHeader.split(' ')[1];
+      }
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
+
+  createWindow();
+
+  app.on('activate', () => {
+    // On OS X it's common to re-create a window in the app when the
+    // dock icon is clicked and there are no other windows open.
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -39,14 +82,6 @@ app.on('ready', createWindow);
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
-  }
-});
-
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
   }
 });
 

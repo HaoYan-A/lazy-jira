@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Layout, Typography, Button, Space, Select, message, Table, Tag, Avatar, Switch, Input, Form, Drawer, Divider, Modal } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table';
 import SettingsDrawer from './components/SettingsDrawer';
 import IssueDetailDrawer from './components/IssueDetailDrawer';
 import { SettingOutlined, SearchOutlined, BarChartOutlined, CheckCircleOutlined, CloseCircleOutlined, LinkOutlined } from '@ant-design/icons';
+import { debounce } from 'lodash';
 
 const { Header, Content } = Layout;
 const { Title } = Typography;
@@ -84,6 +85,7 @@ const Home: React.FC = () => {
   });
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
   const [statsDrawerVisible, setStatsDrawerVisible] = useState(false);
+  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [editingKey, setEditingKey] = useState<string>('');
   const [editingSummary, setEditingSummary] = useState<string>('');
   const [editingAssignee, setEditingAssignee] = useState<string>('');
@@ -93,6 +95,7 @@ const Home: React.FC = () => {
   const [currentEditingRecord, setCurrentEditingRecord] = useState<Issue | null>(null);
   const [summaryModalVisible, setSummaryModalVisible] = useState(false);
   const [isEditingDeveloper, setIsEditingDeveloper] = useState(false);
+  const [assigneeSearchLoading, setAssigneeSearchLoading] = useState(false);
   const [transitions, setTransitions] = useState<Transition[]>([]);
   const [transitionModalVisible, setTransitionModalVisible] = useState(false);
   const [storyPointsModalVisible, setStoryPointsModalVisible] = useState(false);
@@ -101,6 +104,12 @@ const Home: React.FC = () => {
   const [editingDevHours, setEditingDevHours] = useState<string>('');
   const [codingModalVisible, setCodingModalVisible] = useState(false);
   const [editingCoding, setEditingCoding] = useState<string>('');
+  const debouncedSearch = useMemo(
+    () => debounce((value: string) => {
+      handleAssigneeSearch(value);
+    }, 300),
+    []
+  );
 
   useEffect(() => {
     // 从本地存储获取保存的看板和 Sprint
@@ -210,11 +219,10 @@ const Home: React.FC = () => {
             onDoubleClick={() => {
               setCurrentEditingRecord(record);
               setEditingAssignee(assignee?.name || '');
+              setIsEditingDeveloper(false);
               setAssigneeModalVisible(true);
               // 加载可分配用户列表
-              jiraApi.getAssignableUsers(record.key).then(users => {
-                setAssignableUsers(users);
-              });
+              handleAssigneeSearch('');
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#f5f5f5';
@@ -255,9 +263,7 @@ const Home: React.FC = () => {
               setIsEditingDeveloper(true);
               setAssigneeModalVisible(true);
               // 加载可分配用户列表
-              jiraApi.getAssignableUsers(record.key).then(users => {
-                setAssignableUsers(users);
-              });
+              handleAssigneeSearch('');
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#f5f5f5';
@@ -900,6 +906,48 @@ const Home: React.FC = () => {
     }
   };
 
+  // 修改搜索用户的函数
+  const handleAssigneeSearch = async (value: string) => {
+    if (!currentEditingRecord) return;
+    
+    setAssigneeSearchLoading(true);
+    try {
+      const users = await jiraApi.getAssignableUsers(currentEditingRecord.key, value);
+      setAssignableUsers(users);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      message.error('搜索用户失败');
+    } finally {
+      setAssigneeSearchLoading(false);
+    }
+  };
+
+  // 修改搜索输入框的处理
+  const handleAssigneeSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAssigneeSearchText(value);
+    debouncedSearch(value);
+  };
+
+  // 修改打开模态框的处理
+  const handleAssigneeModalOpen = async (record: Issue, isDeveloper: boolean) => {
+    setCurrentEditingRecord(record);
+    setEditingAssignee(isDeveloper ? record.fields.customfield_11103?.[0]?.name || '' : record.fields.assignee?.name || '');
+    setIsEditingDeveloper(isDeveloper);
+    setAssigneeModalVisible(true);
+    // 加载默认列表
+    await handleAssigneeSearch('');
+  };
+
+  // 修改关闭模态框的处理
+  const handleAssigneeModalClose = () => {
+    setAssigneeModalVisible(false);
+    setIsEditingDeveloper(false);
+    setAssigneeSearchText('');
+    setAssignableUsers([]);
+    setCurrentEditingRecord(null);
+  };
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ 
@@ -1037,8 +1085,8 @@ const Home: React.FC = () => {
         loading={settingsLoading}
       />
       <IssueDetailDrawer
-        visible={selectedIssue !== null}
-        onClose={() => setSelectedIssue(null)}
+        visible={detailDrawerVisible}
+        onClose={() => setDetailDrawerVisible(false)}
         issue={selectedIssue}
       />
       <Drawer
@@ -1324,6 +1372,59 @@ const Home: React.FC = () => {
           <Select.Option value="Yes">Yes</Select.Option>
           <Select.Option value="No">No</Select.Option>
         </Select>
+      </Modal>
+
+      <Modal
+        title={isEditingDeveloper ? "选择开发者" : "选择任务所有者"}
+        open={assigneeModalVisible}
+        onCancel={handleAssigneeModalClose}
+        footer={null}
+        width={600}
+      >
+        <Input.Search
+          placeholder="搜索用户"
+          allowClear
+          value={assigneeSearchText}
+          onChange={handleAssigneeSearchChange}
+          loading={assigneeSearchLoading}
+          onSearch={(value) => handleAssigneeSearch(value)}
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ maxHeight: 400, overflow: 'auto' }}>
+          {assignableUsers.length > 0 ? (
+            assignableUsers.map(user => (
+              <div
+                key={user.name}
+                style={{
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderBottom: '1px solid #f0f0f0'
+                }}
+                onClick={() => handleAssigneeSelect(user)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f5f5f5';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Avatar
+                  size="small"
+                  src={user.avatarUrls['48x48']}
+                />
+                <span>{user.displayName}</span>
+                <span style={{ color: '#999' }}>({user.name})</span>
+              </div>
+            ))
+          ) : (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>
+              {assigneeSearchLoading ? '加载中...' : '暂无数据'}
+            </div>
+          )}
+        </div>
       </Modal>
     </Layout>
   );

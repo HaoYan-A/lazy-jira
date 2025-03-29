@@ -20,9 +20,10 @@ const Login: React.FC = () => {
       setLoading(true);
       const response = await jiraApi.login(values.username, values.password);
       if (response) {
-        // 保存用户信息到本地存储
+        // 保存用户信息到本地存储，包括密码
         localStorage.setItem('userInfo', JSON.stringify({
           username: values.username,
+          password: values.password,
           displayName: response.displayName,
           emailAddress: response.emailAddress,
           avatarUrls: response.avatarUrls
@@ -33,6 +34,7 @@ const Login: React.FC = () => {
       }
     } catch (error) {
       console.error('登录失败:', error);
+      message.error('登录失败，请检查用户名和密码');
     } finally {
       setLoading(false);
     }
@@ -58,10 +60,6 @@ const Login: React.FC = () => {
           name="login"
           onFinish={handleLogin}
           autoComplete="off"
-          initialValues={{
-            username: 'yanh',
-            password: '67302339Yh'
-          }}
         >
           <Form.Item
             name="username"
@@ -78,7 +76,7 @@ const Login: React.FC = () => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>
+            <Button type="primary" htmlType="submit" block loading={loading}>
               登录
             </Button>
           </Form.Item>

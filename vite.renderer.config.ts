@@ -8,6 +8,14 @@ export default defineConfig({
   build: {
     outDir: '.vite/renderer',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        index: './index.html',
+      },
+      output: {
+        dir: '.vite/renderer',
+      },
+    },
   },
   server: {
     proxy: {
@@ -16,16 +24,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
         configure: (proxy, options) => {
-          // 在最后一刻设置头部
           proxy.on('proxyReq', (proxyReq, req, res) => {
-            // 先移除可能存在的旧值
-            proxyReq.removeHeader('User-Agent');
-            // 然后设置新值
-            proxyReq.setHeader('User-Agent', 'xx');
-            // 记录所有请求头以便调试
+            proxyReq.setHeader('User-Agent', 'Lazy-Jira');
           });
         }
-        
       }
     }
   }
