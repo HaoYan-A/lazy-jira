@@ -9,4 +9,13 @@ export default defineConfig({
     outDir: '.vite/renderer',
     emptyOutDir: true,
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://jira.logisticsteam.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
 });

@@ -1,11 +1,18 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import Home from './pages/Home';
+import 'antd/dist/reset.css';
 
 const App: React.FC = () => {
   return (
-    <div className="app">
-      <h1>Lazy Jira</h1>
-      <p>Welcome to your Electron + React application!</p>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   );
 };
 
