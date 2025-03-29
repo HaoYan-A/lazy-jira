@@ -1,0 +1,224 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.pixel-login-container {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.pixel-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.pixel-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 255, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.1;
+}
+
+.pixel-login-box {
+  width: 400px;
+  padding: 32px;
+  background: rgba(42, 42, 74, 0.8);
+  border: 4px solid #00ffff;
+  position: relative;
+  z-index: 1;
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 0.3),
+    0 0 40px rgba(255, 0, 255, 0.2);
+  animation: pixel-box-appear 0.5s ease-out;
+  backdrop-filter: blur(10px);
+}
+
+.pixel-login-box::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #00ffff, #ff00ff, #00ffff);
+  z-index: -1;
+  animation: border-rotate 3s linear infinite;
+  border-radius: 4px;
+}
+
+.pixel-title {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.pixel-title h1 {
+  font-family: 'Press Start 2P', cursive;
+  background: linear-gradient(45deg, #00ffff, #ff00ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 24px;
+  margin: 0;
+  text-shadow: 
+    0 0 10px rgba(0, 255, 255, 0.5),
+    0 0 20px rgba(255, 0, 255, 0.5);
+  letter-spacing: 2px;
+  animation: title-glow 2s ease-in-out infinite alternate;
+}
+
+.pixel-decoration {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pixel-dot {
+  width: 8px;
+  height: 8px;
+  background: #00ffff;
+  animation: pixel-dot-blink 1s infinite;
+  box-shadow: 0 0 10px #00ffff;
+}
+
+.pixel-dot:nth-child(2) {
+  background: #ff00ff;
+  box-shadow: 0 0 10px #ff00ff;
+  animation-delay: 0.2s;
+}
+
+.pixel-dot:nth-child(3) {
+  background: #00ff00;
+  box-shadow: 0 0 10px #00ff00;
+  animation-delay: 0.4s;
+}
+
+.pixel-input {
+  background: rgba(26, 26, 46, 0.8) !important;
+  border: 2px solid #00ffff !important;
+  color: #00ffff !important;
+  font-family: 'Press Start 2P', cursive !important;
+  height: 40px !important;
+  margin-bottom: 16px !important;
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.pixel-input:hover {
+  border-color: #ff00ff !important;
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+}
+
+.pixel-input input {
+  background: transparent !important;
+  color: #00ffff !important;
+  font-family: 'Press Start 2P', cursive !important;
+}
+
+.pixel-input input::placeholder {
+  color: rgba(0, 255, 255, 0.5) !important;
+}
+
+.pixel-icon {
+  color: #00ffff;
+  font-size: 16px;
+  text-shadow: 0 0 5px #00ffff;
+}
+
+.pixel-button {
+  background: linear-gradient(45deg, #00ffff, #ff00ff) !important;
+  border: none !important;
+  height: 40px !important;
+  position: relative !important;
+  overflow: hidden !important;
+  font-family: 'Press Start 2P', cursive !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.pixel-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+}
+
+.pixel-button-text {
+  position: relative;
+  z-index: 1;
+  color: #1a1a2e !important;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.pixel-button-effect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.3s;
+}
+
+.pixel-button:hover .pixel-button-effect {
+  transform: translateX(100%);
+}
+
+@keyframes pixel-box-appear {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pixel-dot-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes border-rotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+@keyframes title-glow {
+  from {
+    text-shadow: 
+      0 0 10px rgba(0, 255, 255, 0.5),
+      0 0 20px rgba(255, 0, 255, 0.5);
+  }
+  to {
+    text-shadow: 
+      0 0 20px rgba(0, 255, 255, 0.8),
+      0 0 30px rgba(255, 0, 255, 0.8),
+      0 0 40px rgba(0, 255, 0, 0.5);
+  }
+} 

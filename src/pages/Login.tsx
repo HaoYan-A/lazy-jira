@@ -1,7 +1,8 @@
 import React from 'react';
 import { Form, Input, Button, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { useUser } from '../context/UserContext';
+import { useJiraApi } from '../context/JiraApiContext';
 
 interface LoginForm {
   username: string;
@@ -10,23 +11,30 @@ interface LoginForm {
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { setUsername } = useUser();
+  const jiraApi = useJiraApi();
+  const [loading, setLoading] = React.useState(false);
 
-  const onFinish = async (values: LoginForm) => {
+  const handleLogin = async (values: LoginForm) => {
     try {
-      const auth = btoa(`${values.username}:${values.password}`);
-      const response = await axios.get('/api/rest/auth/1/session', {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Accept': '*/*'
-        }
-      });
-
-      if (response.status === 200) {
+      setLoading(true);
+      const response = await jiraApi.login(values.username, values.password);
+      if (response) {
+        // 保存用户信息到本地存储
+        localStorage.setItem('userInfo', JSON.stringify({
+          username: values.username,
+          displayName: response.displayName,
+          emailAddress: response.emailAddress,
+          avatarUrls: response.avatarUrls
+        }));
+        setUsername(values.username);
         message.success('登录成功');
-        navigate('/home');
+        navigate('/');
       }
     } catch (error) {
-      message.error('登录失败，请检查用户名和密码');
+      console.error('登录失败:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -48,8 +56,12 @@ const Login: React.FC = () => {
         <h1 style={{ textAlign: 'center', marginBottom: 24 }}>Lazy Jira</h1>
         <Form
           name="login"
-          onFinish={onFinish}
+          onFinish={handleLogin}
           autoComplete="off"
+          initialValues={{
+            username: 'yanh',
+            password: '67302339Yh'
+          }}
         >
           <Form.Item
             name="username"
