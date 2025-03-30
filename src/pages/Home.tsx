@@ -700,7 +700,10 @@ const Home: React.FC = () => {
     }
   };
 
-  const getFilteredIssues = () => issues;
+  const getFilteredIssues = () => {
+    if (!issues || issues.length === 0) return [];
+    return issues;
+  };
 
   const filteredBoards = boards.filter(board => 
     board.name.toLowerCase().includes(boardSearchText.toLowerCase()) ||
@@ -713,34 +716,35 @@ const Home: React.FC = () => {
   );
 
   const fetchStats = async () => {
-    if (!selectedSprint) return;
-    
     try {
-      // 获取已完成的任务
-      const completedJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND Coding is not EMPTY AND status in("Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released)`;
-      const completedResponse = await jiraApi.getSprintIssues(selectedSprint, 0, 1000, completedJql);
-
-      const totalSP = completedResponse.issues.reduce((sum, issue) => {
-        return sum + (issue.fields.customfield_10002 || 0);
-      }, 0);
-
-      const totalDevHours = completedResponse.issues.reduce((sum, issue) => {
-        return sum + (issue.fields.customfield_11602 || 0);
-      }, 0);
-
-      // 获取未完成的任务
-      const incompleteJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND (Coding is EMPTY OR status not in ("Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released))`;
-      const incompleteResponse = await jiraApi.getSprintIssues(selectedSprint, 0, 1000, incompleteJql);
-
+      if (!issues || issues.length === 0) return;
+      
+      const completedIssues = issues.filter(issue => 
+        issue.fields.status.name === 'Released' || 
+        issue.fields.status.name === 'PO Review Pass'
+      );
+      
+      const incompleteIssues = issues.filter(issue => 
+        issue.fields.status.name !== 'Released' && 
+        issue.fields.status.name !== 'PO Review Pass'
+      );
+      
+      const completedStoryPoints = completedIssues.reduce((sum, issue) => 
+        sum + (issue.fields.customfield_10002 || 0), 0
+      );
+      
+      const completedDevHours = completedIssues.reduce((sum, issue) => 
+        sum + (issue.fields.customfield_11602 || 0), 0
+      );
+      
       setStats({
-        completedStoryPoints: totalSP,
-        completedDevHours: totalDevHours,
-        completedIssues: completedResponse.issues,
-        incompleteIssues: incompleteResponse.issues
+        completedStoryPoints,
+        completedDevHours,
+        completedIssues,
+        incompleteIssues
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
-      message.error('获取统计数据失败');
     }
   };
 

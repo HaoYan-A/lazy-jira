@@ -1,8 +1,46 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, session, ipcMain } from 'electron';
 import * as path from 'path';
+import express from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 // 存储认证信息的变量
 let authToken: string | null = null;
+let proxyServer: any = null;
+
+const startProxyServer = () => {
+  const app = express();
+
+  // 代理配置
+  const proxyOptions = {
+    target: 'https://jira.logisticsteam.com',
+    changeOrigin: true,
+    secure: false,
+    onProxyReq: (proxyReq: any, req: any, res: any) => {
+      // 只保留必要的请求头
+      proxyReq.setHeader('Accept', '*/*');
+    },
+    onProxyRes: (proxyRes: any, req: any, res: any) => {
+      // 处理响应头
+      proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+    }
+  };
+
+  // 设置代理 - 代理所有请求
+  app.use('/', createProxyMiddleware(proxyOptions));
+
+  // 启动服务器
+  const PORT = 3000;
+  proxyServer = app.listen(PORT, () => {
+    console.log(`Proxy server is running on port ${PORT}`);
+  });
+};
+
+const stopProxyServer = () => {
+  if (proxyServer) {
+    proxyServer.close();
+    proxyServer = null;
+  }
+};
 
 const createWindow = () => {
   // Create the browser window.
@@ -33,6 +71,9 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // 启动代理服务器
+  startProxyServer();
+
   // 设置代理
   session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
     if (authToken) {
@@ -45,9 +86,12 @@ app.whenReady().then(() => {
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = details.url;
     // 处理所有 Jira 相关的请求
-    if (url.startsWith('https://jira.logisticsteam.com')) {
+    if (url.includes('jira.logisticsteam.com')) {
+      // 将请求重定向到本地代理服务器
+      const proxyUrl = url.replace('https://jira.logisticsteam.com', 'http://localhost:3000');
+      console.log(`Redirecting request from ${url} to ${proxyUrl}`);
       callback({
-        redirectURL: url.replace('https://jira.logisticsteam.com', 'http://localhost:3000')
+        redirectURL: proxyUrl
       });
     } else {
       callback({});
@@ -74,6 +118,11 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+// 在应用退出时停止代理服务器
+app.on('before-quit', () => {
+  stopProxyServer();
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

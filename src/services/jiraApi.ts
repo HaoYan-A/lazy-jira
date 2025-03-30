@@ -25,10 +25,10 @@ export const authEventBus = eventBus;
 
 // 根据环境设置不同的 baseUrl
 const isDev = process.env.NODE_ENV === 'development';
-const JIRA_API_BASE = isDev ? '/api/rest/agile/1.0' : 'http://localhost:3000/rest/agile/1.0';
-const JIRA_API_BASE_V2 = isDev ? '/api/rest/api/2' : 'http://localhost:3000/rest/api/2';
-const JIRA_API_BASE_V3 = isDev ? '/api/rest/api/3' : 'http://localhost:3000/rest/api/3';
-const JIRA_AUTH_BASE = isDev ? '/api/rest/auth/1' : 'http://localhost:3000/rest/auth/1';
+const JIRA_API_BASE =  'http://localhost:3000/rest/agile/1.0';
+const JIRA_API_BASE_V2 =  'http://localhost:3000/rest/api/2';
+const JIRA_API_BASE_V3 = 'http://localhost:3000/rest/api/3';
+const JIRA_AUTH_BASE = 'http://localhost:3000/rest/auth/1';
 
 // 添加请求拦截器
 axios.interceptors.request.use(
