@@ -1,10 +1,9 @@
-import type { ForgeConfig } from '@electron-forge/shared-types';
-import { VitePlugin } from '@electron-forge/plugin-vite';
+const { VitePlugin } = require('@electron-forge/plugin-vite');
 
-const config: ForgeConfig = {
+module.exports = {
   packagerConfig: {
     asar: true,
-    icon: './assets/icon.icns',
+    icon: './lazy-jira',
     osxSign: {
       identity: undefined,
     },
@@ -19,8 +18,10 @@ const config: ForgeConfig = {
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        iconUrl: 'https://raw.githubusercontent.com/HaoYan-A/lazy-jira/main/assets/icon.ico',
-        setupIcon: './assets/icon.ico',
+        name: 'lazy-jira',
+        authors: 'HaoYan',
+        iconUrl: 'https://raw.githubusercontent.com/HaoYan-A/lazy-jira/main/lazy-jira.ico',
+        setupIcon: './lazy-jira.ico',
         setupExe: 'LazyJiraSetup.exe',
         noMsi: true,
       },
@@ -72,6 +73,4 @@ const config: ForgeConfig = {
       ],
     }),
   ],
-};
-
-export default config;
+}; 

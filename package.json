@@ -6,6 +6,7 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "electron-forge start",
+    "dev": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
@@ -30,6 +31,7 @@
     "@electron-forge/publisher-github": "^7.8.0",
     "@electron/fuses": "^1.8.0",
     "@types/lodash": "^4.17.16",
+    "@types/node": "^22.13.14",
     "@types/react": "^18.2.67",
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
@@ -40,6 +42,7 @@
     "eslint-plugin-import": "^2.31.0",
     "express": "^4.21.2",
     "http-proxy-middleware": "^3.0.3",
+    "png2icons": "^2.0.1",
     "ts-node": "^10.9.2",
     "typescript": "~4.5.4",
     "vite": "^5.4.15"
