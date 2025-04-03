@@ -122,7 +122,7 @@ const Home: React.FC = () => {
       // 加载默认看板后立即加载对应的 Sprint
       fetchSprints(boardId);
     }
-    
+
     if (savedSprint) {
       const sprintId = parseInt(savedSprint);
       setSelectedSprint(sprintId);
@@ -575,7 +575,7 @@ const Home: React.FC = () => {
   const handleBoardChange = async (value: number) => {
     setSelectedBoard(value);
     setSelectedSprint(null);
-    setIssues([]);
+    // setIssues([]);
     setSettingsLoading(true);
     try {
       await fetchSprints(value);
@@ -720,7 +720,7 @@ const Home: React.FC = () => {
 
     try {
       // 获取已完成的任务
-      const completedJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND Coding is not EMPTY AND status in("Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released)`;
+      const completedJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND Coding is not EMPTY AND status in(Closed,"Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released)`;
       const completedResponse = await jiraApi.getSprintIssues(selectedSprint, 0, 1000, completedJql);
 
       const totalSP = completedResponse.issues.reduce((sum, issue) => {
@@ -732,7 +732,7 @@ const Home: React.FC = () => {
       }, 0);
 
       // 获取未完成的任务
-      const incompleteJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND (Coding is EMPTY OR status not in ("Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released))`;
+      const incompleteJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND (Coding is EMPTY OR status not in (Closed,"Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released))`;
       const incompleteResponse = await jiraApi.getSprintIssues(selectedSprint, 0, 1000, incompleteJql);
 
       setStats({
@@ -751,7 +751,7 @@ const Home: React.FC = () => {
     if (selectedSprint) {
       fetchStats();
     }
-  }, [selectedSprint]);
+  }, [selectedSprint, statsDrawerVisible]);
 
   const handleEdit = (record: Issue) => {
     setEditingKey(record.id);
@@ -1097,7 +1097,7 @@ const Home: React.FC = () => {
         placement="right"
         onClose={() => setStatsDrawerVisible(false)}
         open={statsDrawerVisible}
-        width={600}
+        width={'80%'}
       >
         <div style={{ marginBottom: 24 }}>
           <div style={{ 
