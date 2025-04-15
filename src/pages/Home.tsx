@@ -720,7 +720,7 @@ const Home: React.FC = () => {
 
     try {
       // 获取已完成的任务
-      const completedJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND Coding is not EMPTY AND status in(Closed,"Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released)`;
+      const completedJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND status in(Closed,"Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released)`;
       const completedResponse = await jiraApi.getSprintIssues(selectedSprint, 0, 1000, completedJql);
 
       const totalSP = completedResponse.issues.reduce((sum, issue) => {
@@ -732,7 +732,7 @@ const Home: React.FC = () => {
       }, 0);
 
       // 获取未完成的任务
-      const incompleteJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND (Coding is EMPTY OR status not in (Closed,"Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released))`;
+      const incompleteJql = `Developer = ${username} AND Sprint = ${selectedSprint} AND fixVersion is EMPTY AND (status not in (Closed,"Ready to Test",Testing,"Ready for PO Review","PO Review Pass","PO Review Failed",Released))`;
       const incompleteResponse = await jiraApi.getSprintIssues(selectedSprint, 0, 1000, incompleteJql);
 
       setStats({
@@ -1252,9 +1252,9 @@ const Home: React.FC = () => {
                   const status = record.fields.status.name;
                   const reasons = [];
 
-                  if (!coding) {
-                    reasons.push('未填写 Coding');
-                  }
+                  // if (!coding) {
+                  //   reasons.push('未填写 Coding');
+                  // }
                   if (!['Ready to Test', 'Testing', 'Ready for PO Review', 'PO Review Pass', 'PO Review Failed', 'Released'].includes(status)) {
                     reasons.push(`状态为 ${status}`);
                   }
